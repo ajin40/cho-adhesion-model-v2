@@ -1,13 +1,7 @@
 import numpy as np
-import random as r
-import math
-from numba import jit, prange
-from simulation import Simulation, record_time, template_params
+from numba import jit
+from simulation import Simulation, record_time
 import backend
-# from pythonabm import Simulation, record_time, template_params
-# from pythonabm.backend import record_time, check_direct, template_params, check_existing, get_end_step, Graph, \
-#     progress_bar, starting_params, check_output_dir, assign_bins_jit, get_neighbors_cpu, get_neighbors_gpu
-
 
 @jit(nopython=True, parallel=True)
 def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, types, radius, alpha=10, r_e=1.01,
@@ -50,9 +44,7 @@ def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, typ
 def get_gravity_forces(number_cells, locations, center, well_rad, net_forces, grav=1):
     for index in range(number_cells):
         new_loc = locations[index] - center
-        # net_forces[index] = -grav * (new_loc / well_rad) * \
-        #                     np.sqrt(1 - (np.linalg.norm(new_loc) / well_rad) ** 2)
-        new_loc_sum = new_loc[0] ** 2 + new_loc[1] ** 2 + new_loc[2] ** 2
+        new_loc_sum = new_loc[0] ** 2 + new_loc[1] ** 2
         net_forces[index] = -grav * (new_loc / well_rad) * new_loc_sum ** (1/2)
     return net_forces
 
@@ -78,8 +70,8 @@ def seed_cells(num_agents, center, radius):
     locations = np.hstack((x, y, z))
     return locations
 
-def calculate_rate(combined_percent):
-    return 1 - np.power(1-combined_percent, 1/720)
+def calculate_rate(combined_percent, end_step):
+    return 1 - np.power(1-combined_percent, 1/end_step)
 
 def calculate_transition_rate(combined_percent, t):
     transition_rate = 1 - (1-combined_percent) ** t
@@ -89,13 +81,31 @@ class TestSimulation(Simulation):
     """ This class inherits the Simulation class allowing it to run a
         simulation with the proper functionality.
     """
-    def __init__(self, yaml_file='general.yaml'):
+    def __init__(self, model_params):
         # initialize the Simulation object
         Simulation.__init__(self)
 
-        # read parameters from YAML file and add them to instance variables
-        self.yaml_parameters(yaml_file)
-        self.yaml_name = yaml_file
+        self.default_parameters = {
+            "num_to_start": 1000,
+            "cuda": False,
+            "size": [1, 1, 1],
+            "well_rad": 30,
+            "output_values": False,
+            "output_images": True,
+            "image_quality": 300,
+            "video_quality": 300,
+            "fps": 5,
+            "cell_rad": 0.5,
+            "velocity": 0.3,
+            "initial_seed_ratio": 0.5,
+            "cell_interaction_rad": 3.2,
+            "replication_type": None,
+            "sub_ts": 960
+        }
+        self.model_parameters(self.default_parameters)
+        self.model_parameters(model_params)
+        self.model_params = model_params
+
         # aba/dox/cho ratio
         self.cho_ratio = 1 - (self.aba_ratio + self.dox_ratio)
         self.aba_color = np.array([255, 255, 0], dtype=int) #yellow
@@ -142,17 +152,17 @@ class TestSimulation(Simulation):
         self.div_thresh = self.agent_array(initial={"ABA": lambda: 1, "DOX": lambda: 1, "CHO": lambda: 1})
         self.division_set = self.agent_array(initial={"ABA": lambda: 0, "DOX": lambda: 0, "CHO": lambda: 0})
 
-        # save parameters to text file
-        self.save_params(self.yaml_name)
-
         #indicate and create graphs for identifying neighbors
         self.indicate_graphs("neighbor_graph")
         self.neighbor_graph = self.agent_graph()
 
         #stochastic gene circuit
-        self.transition_rate = calculate_rate(self.dox_ratio + self.aba_ratio)
+        self.transition_rate = calculate_rate(self.dox_ratio + self.aba_ratio, self.end_step)
         self.transition = np.random.rand(self.number_agents)
         self.cell_fate()
+
+        # save parameters to text file
+        self.save_params(self.model_params)
 
         # record initial values
         self.step_values()
@@ -262,18 +272,6 @@ class TestSimulation(Simulation):
         self.removing[:] = False
 
     def cell_fate(self):
-
-        # Bernoulli Probabilities:
-
-        # cho_types = np.argwhere(self.cell_type == 0)
-        # if len(cho_types) > 0:
-        #     committed_cells = np.random.binomial(1, self.transition_rate, len(cho_types))
-        #     aba_cells = np.random.binomial(1, self.aba_ratio / (self.aba_ratio + self.dox_ratio), sum(committed_cells)) + 1
-        #     cell_fate = aba_cells
-        #     start = np.where(self.cell_type == 0)[0][0]
-        #     self.cell_type[start:start+len(cell_fate)] = cell_fate
-        # self.update_colors()
-
         transition_threshold = calculate_transition_rate(self.transition_rate, self.current_step)
         committed_cells = self.transition < transition_threshold
         for i in range(self.number_agents):
@@ -340,12 +338,12 @@ class TestSimulation(Simulation):
             return
 
     @classmethod
-    def simulation_mode_0(cls, name, output_dir, yaml_file="general.yaml"):
+    def simulation_mode_0(cls, name, output_dir, model_params):
         """ Creates a new brand new simulation and runs it through
             all defined steps.
         """
         # make simulation instance, update name, and add paths
-        sim = cls(yaml_file)
+        sim = cls(model_params)
         sim.name = name
         sim.set_paths(output_dir)
 
@@ -353,12 +351,10 @@ class TestSimulation(Simulation):
         sim.full_setup()
         sim.run_simulation()
 
-    def save_params(self, path):
+    def save_params(self, params):
         """ Add the instance variables to the Simulation object based
             on the keys and values from a YAML file.
         """
-        # load the dictionary
-        params = template_params(path)
 
         # iterate through the keys adding each instance variable
         with open(self.main_path + "parameters.txt", "w") as parameters:
@@ -367,40 +363,32 @@ class TestSimulation(Simulation):
         parameters.close()
 
     @classmethod
-    def start_sweep(cls, output_dir, yaml_file, name, mode):
+    def start_sweep(cls, output_dir, model_params, name):
         """ Configures/runs the model based on the specified
             simulation mode.
         """
         # check that the output directory exists and get the name/mode for the simulation
         output_dir = backend.check_output_dir(output_dir)
 
-        # new simulation
-        if mode == 0:
-            # first check that new simulation can be made and run that mode.
-            # i = 0
-            # while os.path.isdir(output_dir + name):
-            #     name = name + f'_{i}'
-            #     i += 1
-            print(f'Starting {name} ...')
-            name = backend.check_existing(name, output_dir, new_simulation=True)
-            cls.simulation_mode_0(name, output_dir, yaml_file=yaml_file)
-
-        # existing simulation
-        else:
-            # check that previous simulation exists
-            name = backend.check_existing(name, output_dir, new_simulation=False)
-
-            # call the corresponding mode
-            if mode == 1:
-                cls.simulation_mode_1(name, output_dir)    # continuation
-            elif mode == 2:
-                cls.simulation_mode_2(name, output_dir)    # images to video
-            elif mode == 3:
-                cls.simulation_mode_3(name, output_dir)    # archive simulation
-            else:
-                raise Exception("Mode does not exist!")
+        name = backend.check_existing(name, output_dir, new_simulation=True)
+        cls.simulation_mode_0(name, output_dir, model_params)
 
 
-#EDIT WHICH YAML FILE USED IN simulation_mode_0.
+
 if __name__ == "__main__":
-    TestSimulation.start("/Users/andrew/PycharmProjects/CHO_adhesion_model/outputs/")
+    model_params = {
+        "u_bb": 1,
+        "u_rb": 1,
+        "u_yb": 1,
+        "u_rr": 30,
+        "u_repulsion": 10000,
+        "alpha": 10,
+        "gravity": 2,
+        "u_yy": 40,
+        "u_ry": 1,
+        "dox_ratio": 0.5,
+        "aba_ratio": 0.3,
+        "PACE": False
+    }
+    sim = TestSimulation(model_params)
+    sim.start("/Users/andrew/PycharmProjects/ST_CHO_adhesion_model/outputs/", model_params)

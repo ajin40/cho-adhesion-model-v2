@@ -495,7 +495,11 @@ class Simulation(ABC):
                 # get file name and create the video object
                 file_name = f"{self.name}_video.mp4"
                 codec = cv2.VideoWriter_fourcc(*"mp4v")
-                video_object = cv2.VideoWriter(self.main_path + file_name, codec, self.fps, new_size)
+                temp_path = '/storage/coda1/p-mkemp6/0/shared/cell_sorting_videos/'
+                if self.PACE:
+                    video_object = cv2.VideoWriter(temp_path + file_name, codec, self.fps, new_size)
+                else:
+                    video_object = cv2.VideoWriter(self.main_path + file_name, codec, self.fps, new_size)
 
                 # go through sorted image list, reading and writing each image to the video object
                 for i in range(image_count):
@@ -526,19 +530,16 @@ class Simulation(ABC):
             radius = math.cos(phi)
             return np.array([radius * math.cos(theta), radius * math.sin(theta), math.sin(phi)])
 
-    def yaml_parameters(self, path):
+    def model_parameters(self, model_params):
         """ Add the instance variables to the Simulation object based
             on the keys and values from a YAML file.
 
-            :param path: Path to YAML template file for simulation instance variables.
-            :type path: str
+            :param model_params: List of all parameters.
+            :type model_params: dictionary
         """
-        # load the dictionary
-        params = template_params(path)
 
-        # iterate through the keys adding each instance variable
-        for key in list(params.keys()):
-            self.__dict__[key] = params[key]
+        for key in list(model_params.keys()):
+            self.__dict__[key] = model_params[key]
 
     def add_agents(self, number, agent_type=None):
         """ Adds number of agents to the simulation.
@@ -769,7 +770,7 @@ class Simulation(ABC):
         print("Done!")
 
     @classmethod
-    def start(cls, output_dir):
+    def start(cls, output_dir, model_params):
         """ Configures/runs the model based on the specified
             simulation mode.
 
@@ -787,7 +788,7 @@ class Simulation(ABC):
         if mode == 0:
             # first check that new simulation can be made and run that mode
             name = check_existing(name, output_dir, new_simulation=True)
-            cls.simulation_mode_0(name, output_dir)
+            cls.simulation_mode_0(name, output_dir, model_params)
 
         # existing simulation
         else:
