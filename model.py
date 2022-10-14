@@ -1,11 +1,16 @@
 import numpy as np
+import os
 from numba import jit
 from simulation import Simulation, record_time
 import backend
+import sys
 
 @jit(nopython=True, parallel=True)
-def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, types, radius, alpha=10, r_e=1.01,
-                        u_bb=5, u_rb=1, u_yb=1, u_rr=20, u_ry=12, u_yy=30, u_repulsion=10000):
+def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, types, radius, alpha, r_e,
+                        u_bb, u_rb, u_yb, u_rr, u_ry, u_yy, u_repulsion=10000):
+    """
+    Determining force vectors dependent on local cell-cell interactions.
+    """
     for index in range(number_edges):
         # get indices of cells in edge
         cell_1 = edges[index][0]
@@ -66,7 +71,7 @@ def seed_cells(num_agents, center, radius):
     rad = radius * np.sqrt(np.random.rand(num_agents)).reshape(num_agents, 1)
     x = rad * np.cos(theta) + center[0]
     y = rad * np.sin(theta) + center[1]
-    z = np.zeros((num_agents, 1)) + center[2]
+    z = radius * np.random.rand(num_agents).reshape(num_agents, 1) + center[2]
     locations = np.hstack((x, y, z))
     return locations
 
@@ -90,7 +95,7 @@ class TestSimulation(Simulation):
             "cuda": False,
             "size": [1, 1, 1],
             "well_rad": 30,
-            "output_values": False,
+            "output_values": True,
             "output_images": True,
             "image_quality": 300,
             "video_quality": 300,
@@ -99,8 +104,7 @@ class TestSimulation(Simulation):
             "velocity": 0.3,
             "initial_seed_ratio": 0.5,
             "cell_interaction_rad": 3.2,
-            "replication_type": None,
-            "sub_ts": 960
+            "replication_type": None
         }
         self.model_parameters(self.default_parameters)
         self.model_parameters(model_params)
@@ -126,7 +130,7 @@ class TestSimulation(Simulation):
         # num_dox = int(self.num_to_start * self.dox_ratio)
         # num_cho = int(self.num_to_start * self.cho_ratio)
 
-        # Seeding cells with stochastic transition rates
+        # Seeding cells with transition rates
         num_aba = 0
         num_dox = 0
         num_cho = int(self.num_to_start)
@@ -177,12 +181,7 @@ class TestSimulation(Simulation):
             self.get_neighbors(self.neighbor_graph, self.cell_interaction_rad * self.cell_rad)
             # move the cells and track total repulsion vs adhesion forces
             self.move_parallel()
-        # get the following data. We can generate images at each time step, but right now that is not needed.
-
-        # add/remove agents from the simulation
-        # self.update_populations()
         print(f'Num_ABA: {len(np.argwhere(self.cell_type == 2))}, Num_dox: {len(np.argwhere(self.cell_type == 1))}')
-
         # Update cell fate
         self.cell_fate()
 
@@ -201,7 +200,8 @@ class TestSimulation(Simulation):
     @record_time
     def update_populations(self):
         """ Adds/removes agents to/from the simulation by adding/removing
-            indices from the cell arrays and any graphs.
+            indices from the cell arrays and any graphs. PythonABM has cell division capabilities, but these
+            are not used in the cell adhesion model.
         """
         # get indices of hatching/dying agents with Boolean mask
         add_indices = np.arange(self.number_agents)[self.hatching]
@@ -264,8 +264,6 @@ class TestSimulation(Simulation):
 
         # change total number of agents and print info to terminal
         self.number_agents += num_added
-        # print("\tAdded " + str(num_added) + " agents")
-        # print("\tRemoved " + str(num_removed) + " agents")
 
         # clear the hatching/removing arrays for the next step
         self.hatching[:] = False
@@ -285,6 +283,8 @@ class TestSimulation(Simulation):
 
     @record_time
     def move_parallel(self):
+        """ Updates cell locations dependent on local interactions and a "gravity force"
+        """
         edges = np.asarray(self.neighbor_graph.get_edgelist())
         num_edges = len(edges)
         edge_forces = np.zeros((num_edges, 2, 3))
@@ -314,10 +314,9 @@ class TestSimulation(Simulation):
         self.locations = np.where(self.locations > self.well_rad, self.well_rad, self.locations)
         self.locations = np.where(self.locations < 0, 0, self.locations)
 
-    #Unused..
     @record_time
     def reproduce(self, ts):
-        """ If the agent meets criteria, hatch a new agent.
+        """ If the agent meets criteria, hatch a new agent. Unused in cell adhesion model.
         """
         # increase division counter by time step for all agents
         self.division_set += ts
@@ -373,7 +372,7 @@ class TestSimulation(Simulation):
         name = backend.check_existing(name, output_dir, new_simulation=True)
         cls.simulation_mode_0(name, output_dir, model_params)
 
-def parameter_sweep_abm(par, directory, RR, YY, RY, dox_ratio, aba_ratio, final_ts=60):
+def run_abm(par, directory, RR, YY, RY, dox_ratio, aba_ratio, final_ts=60, sub_ts=1):
     """ Run model with specified parameters
         :param par: simulation number
         :param directory: Location of model outputs. A folder titled 'outputs' is required
@@ -405,27 +404,22 @@ def parameter_sweep_abm(par, directory, RR, YY, RY, dox_ratio, aba_ratio, final_
         "u_ry": RY,
         "dox_ratio": dox_ratio,
         "aba_ratio": aba_ratio,
-        "PACE": False
+        "PACE": False,
+        "sub_ts": sub_ts
     }
     name = f'urr{RR}_uyy{YY}_ury{RY}_dox{dox_ratio}_aba{aba_ratio}'
     sim = TestSimulation(model_params)
-    sim.start_sweep(directory + '/outputs', model_params, name)
+    sim.start_sweep(directory, model_params, name)
     return par, sim.image_quality, sim.image_quality, 3, final_ts/sim.sub_ts
 
 if __name__ == "__main__":
-    model_params = {
-        "u_bb": 1,
-        "u_rb": 1,
-        "u_yb": 1,
-        "u_rr": 30,
-        "u_repulsion": 10000,
-        "alpha": 10,
-        "gravity": 2,
-        "u_yy": 40,
-        "u_ry": 1,
-        "dox_ratio": 0.5,
-        "aba_ratio": 0.3,
-        "PACE": False
-    }
-    a = parameter_sweep_abm(0, "/Users/andrew/PycharmProjects/ST_CHO_adhesion_model/", 20, 20, 1, 0.5, 0.2, final_ts=2)
-    print(a)
+    path = os.getcwd()
+    u_rr = int(sys.argv[1])
+    u_yy = int(sys.argv[2])
+    u_ry = int(sys.argv[3])
+    dox = float(sys.argv[4])
+    aba = float(sys.argv[5])
+    final_ts = int(sys.argv[6])
+    sub_ts = int(sys.argv[7])
+
+    run_abm(0, path, u_rr, u_yy, u_ry, dox, aba, final_ts=final_ts, sub_ts=sub_ts)
