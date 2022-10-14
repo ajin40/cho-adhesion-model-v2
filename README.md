@@ -1,4 +1,4 @@
-# Vicsek-like ABM of cell self-organization in cadherin-linked synthetic switch
+# Vicsek-like ABM of cell aggregation in cadherin-linked synthetic switch
 
 Link to manuscript: To be added
 
