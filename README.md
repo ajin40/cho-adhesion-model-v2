@@ -5,11 +5,9 @@ Link to manuscript: To be added
 ## Title
 Synthetic symmetry breaking and programmable multicellular structure formation
 ## Authors
-Noreen Wauford*, Akshay Patel*, Jesse Tordoff*, Casper Enghuus*, Andrew Jin<sup>++</sup>, Jack Toppen, Melissa L. Kemp, Ron Weiss<sup>#</sup>
+*Noreen Wauford, *Akshay Patel, *Jesse Tordoff, *Casper Enghuus, Andrew Jin<sup>++</sup>, Jack Toppen, Melissa L. Kemp, Ron Weiss
 
-*: Co-First authors
 <sup>++</sup>: Code author
-<sup>#</sup>: Corresponding author
 
 # Model Description
 Cells are modeled as rigid spheres of three cell types: blue, red, and yellow cells all with equal cell diameter σ. The three cell types vary in adhesion strength, and are in ascending order: blue, red, and yellow, with yellow-yellow adhesion the highest. All cells are initialized as blue cells with a fixed probability of transitioning to a cadherin expressing (red, yellow) state determined by the final fluorescence intensity expression of the corresponding Dox/ABA dosage experiment, p_total cells committed. The fixed transition probability at each time step (x) is back calculated from the final fluorescence intensity expression:
