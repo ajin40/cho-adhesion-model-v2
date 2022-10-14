@@ -18,9 +18,9 @@ $$(1-x)^{72h}=(1-p_{total cells committed})$$
 
 When a cell is indicated to transition to a cadherin expressing state, the probability of choosing the red or yellow states is also determined by the fluorescence intensity expression. The probability of choosing the one of the states is equal to the experimental intensity expression ratio of the respective cells over the total non-blue intensity expression. 
 
-Cell locations are stored in a NumPy array and used for local cell interaction calculations. Cell locations are updated each time step (10 simulated seconds), at a fixed velocity of 0.3 * σ (cell radius). The direction of each cell’s velocity vector is determined by the normalized sum of all forces acting upon each cell. These forces are Brownian motion, a gravity field, and the local cell-cell interactions of homotypic and heterotypic adhesion and steric repulsion. 
+Cell locations are stored in a NumPy array and used for local cell interaction calculations. Cell locations are updated each time step (10 simulated seconds), at a fixed velocity of 0.3 * σ (cell diameter). The direction of each cell’s velocity vector is determined by the normalized sum of all forces acting upon each cell. These forces are Brownian motion, a gravity field, and the local cell-cell interactions of homotypic and heterotypic adhesion and steric repulsion. 
 
-All cells experience Brownian motion and a gravity field designed to mimic cell behavior in an ultra-low binding U-shaped bottom well. To represent the curvature of the well, the magnitude of the gravity field is dependent on the xy planar distance $(|r_{i,xy}|)$ from the center of the simulation space. U_g represents the strength of the force and R as the radius of the well.
+All cells experience Brownian motion and a gravity field designed to mimic cell behavior in an ultra-low binding U-shaped bottom well. To represent the curvature of the well, the magnitude of the gravity field is dependent on the xy planar distance $(|r_{i,xy}|)$ from the center of the simulation space. $U_g$ represents the strength of the force and R as the radius of the well.
 
 $$f_i=-U_g r_i  (|r_{i,xy}|)/R$$
 
@@ -32,7 +32,7 @@ At $|1< r_{ij}<1.6*σ|$, cells experience attraction due to cell-cell adhesion. 
 
 $$f_{ij}=U_{ij} (r_{ij}-r_e )  r_{ij}/|r_{ij}|$$
 
-Where $U_{ij}$ is the pairwise cell type specific adhesion force. There are 6 cell-type specific adhesion parameters, of which 3 are for the homotypic ($U_{bb},U_{rr},U_{yy}$) adhesion forces, and 3 are for the heterotypic ($U_{br},U_{by},U_{ry}$) adhesion forces. The equilibrium distance of intercellular interaction is denoted as $r_e$. The isotropic noise of the attraction force is represented with a Gaussian noise vector $ξ_{ij}$ with magnitude α. At  $|r_{ij}>1.6*σ|$, the cells are sufficiently far and do not interact. As cells sufficiently distant from each other do not influence each other, local interactions are identified through a fixed radius search of 1.6 * σ for nearby cell bodies and then subsequently divided into adhesion and repulsion forces. 
+Where $U_{ij}$ is the pairwise cell type specific adhesion force. There are 6 cell-type specific adhesion parameters, of which 3 are for the homotypic $(U_{bb},U_{rr},U_{yy})$ adhesion forces, and 3 are for the heterotypic $(U_{br},U_{by},U_{ry})$ adhesion forces. The equilibrium distance of intercellular interaction is denoted as $r_e$. The isotropic noise of the attraction force is represented with a Gaussian noise vector $ξ_{ij}$ with magnitude α. At  $|r_{ij}>1.6*σ|$, the cells are sufficiently far and do not interact. As cells sufficiently distant from each other do not influence each other, local interactions are identified through a fixed radius search of 1.6 * σ for nearby cell bodies and then subsequently divided into adhesion and repulsion forces. 
 
 # Implementation
 We implemented the ABM using the PythonABM library developed by author Jack Toppen. PythonABM is an installable library that provides a framework for building efficient ABMs in Python. 
@@ -61,3 +61,6 @@ To recreate simulations as seen in Fig 4 of the article, set RR=30, YY=40, RY=1.
 run_tags.dox_aba_matrix(directory, rr, yy, ry, replicate_number)
 ```
 Additionally, if access to a parallel job creator is available, the main method of run_tags can be run, requiring a job file with each line a specific aba/dox ratio. On the PACE cluster, this is the command pace-gnu-job.
+
+# Questions 
+For any questions about the code, contact Andrew Jin at ajin40 [at] gatech.edu
