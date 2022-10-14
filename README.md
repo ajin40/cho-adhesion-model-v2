@@ -42,10 +42,10 @@ To run a single simulation, the easiest way is to run
 ```
 python model.py rr yy ry dox aba tf subts
 ```
-RR, YY, RY specifies the respective cell-cell adhesion parameters.
-dox, aba are the final ratios of red and yellow cells, respectively
-tf is the final number of frames
-subts is the number of time steps per frame.
+RR, YY, RY specifies the respective cell-cell adhesion parameters. <\n>
+dox, aba are the final ratios of red and yellow cells, respectively <\n>
+tf is the final number of frames <\n>
+subts is the number of time steps per frame. <\n>
 
 This command will create a simulation in the current directory. The output files will be:
 1. A folder containing csv files of the locations of the cells at each frame
