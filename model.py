@@ -429,5 +429,3 @@ if __name__ == "__main__":
     }
     a = parameter_sweep_abm(0, "/Users/andrew/PycharmProjects/ST_CHO_adhesion_model/", 20, 20, 1, 0.5, 0.2, final_ts=2)
     print(a)
-    # sim = TestSimulation(model_params)
-    # sim.start("/Users/andrew/PycharmProjects/ST_CHO_adhesion_model/outputs/", model_params)
