@@ -291,7 +291,7 @@ class TestSimulation(Simulation):
         neighbor_forces = np.zeros((self.number_agents, 3))
         # get adhesive/repulsive forces from neighbors and gravity forces
         edge_forces = get_neighbor_forces(num_edges, edges, edge_forces, self.locations, self.center, self.cell_type,
-                                          self.cell_rad, u_bb=self.u_bb, u_rb=self.u_rb, u_rr=self.u_rr, u_yb=self.u_yb,
+                                          self.cell_rad, r_e=1.01, u_bb=self.u_bb, u_rb=self.u_rb, u_rr=self.u_rr, u_yb=self.u_yb,
                                           u_ry=self.u_ry, u_yy=self.u_yy, alpha=0, u_repulsion=self.u_repulsion)
         neighbor_forces = convert_edge_forces(num_edges, edges, edge_forces, neighbor_forces)
         noise_vector = np.ones((self.number_agents, 3)) * self.alpha * (2 * np.random.rand(self.number_agents, 3) - 1)

@@ -1,0 +1,14 @@
+u_bb: 1
+u_rb: 1
+u_yb: 1
+u_rr: 30
+u_repulsion: 10000
+alpha: 10
+gravity: 2
+end_step: 60
+u_yy: 40
+u_ry: 1
+dox_ratio: 0.5
+aba_ratio: 0.5
+PACE: False
+sub_ts: 1
