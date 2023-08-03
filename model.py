@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from numba import jit
+from numba import jit, prange
 from simulation import Simulation, record_time
 import backend
 import sys
@@ -11,7 +11,7 @@ def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, typ
     """
     Determining force vectors dependent on local cell-cell interactions.
     """
-    for index in range(number_edges):
+    for index in prange(number_edges):
         # get indices of cells in edge
         cell_1 = edges[index][0]
         cell_2 = edges[index][1]
@@ -47,7 +47,7 @@ def get_neighbor_forces(number_edges, edges, edge_forces, locations, center, typ
 
 @jit(nopython=True, parallel=True)
 def get_gravity_forces(number_cells, locations, center, well_rad, net_forces, grav=1):
-    for index in range(number_cells):
+    for index in prange(number_cells):
         new_loc = locations[index] - center
         new_loc_sum = new_loc[0] ** 2 + new_loc[1] ** 2
         net_forces[index] = -grav * (new_loc / well_rad) * new_loc_sum ** (1/2)
@@ -56,7 +56,7 @@ def get_gravity_forces(number_cells, locations, center, well_rad, net_forces, gr
 
 @jit(nopython=True)
 def convert_edge_forces(number_edges, edges, edge_forces, neighbor_forces):
-    for index in range(number_edges):
+    for index in prange(number_edges):
         # get indices of cells in edge
         cell_1 = edges[index][0]
         cell_2 = edges[index][1]
